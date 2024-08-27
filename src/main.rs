@@ -25,7 +25,7 @@ fn main() {
                         _stream.write("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).unwrap();
                     }
                     Err(e) => {
-                        _stream.write("HTTP/1.1 400 Bad Request\r\n\r\n".as_bytes()).unwrap();
+                        _stream.write("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes()).unwrap();
                     }
                 }
 
