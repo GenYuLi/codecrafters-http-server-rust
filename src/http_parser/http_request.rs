@@ -1,4 +1,6 @@
 use std::error::Error;
+
+#[derive(Debug)]
 pub(crate) struct HttpRequest {
     // Use pub for debugging purposes
     pub method: String,
@@ -27,15 +29,6 @@ impl HttpRequest {
         self.method = parts.next().ok_or("method error")?.to_string();
         self.request_uri = parts.next().ok_or("url error")?.to_string();
         self.http_version = parts.next().ok_or("version error{}")?.to_string();
-
-        match self.request_uri.as_str() {
-            "/" => {
-                self.body = "Hello, world!".to_string();
-            }
-            _ => {
-                return Err("404 not found".into());
-            }
-        }
 
         // TODO: Parse headers and body
         Ok(())
