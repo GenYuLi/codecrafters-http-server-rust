@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use std::error::Error;
 use crate::http_parser::http_response::HttpResponse;
 use crate::http_parser::http_request::HttpRequest;
 
-type HandlerFn = fn(&HttpRequest) -> HttpResponse;
+type HandlerFn = fn(&HttpRequest) -> Result<HttpResponse, Box<dyn Error>>;
 
 #[derive(Default)]
 struct TrieNode {
@@ -23,11 +24,11 @@ impl Router {
         }
     }
 
-    pub fn add_route(&mut self, path: &str, handler: HandlerFn) -> &mut Router {
+    pub(crate) fn add_route(&mut self, path: &str, handler: HandlerFn) -> Result<&mut Router, Box<dyn Error>> {
         let mut current_node = &mut self.root;
-        if (path.ends_with("/*")) {
+        if path.ends_with("/*") {
             self.wildcard_routes.push((path.trim_end_matches("/*").to_string(), handler));
-            return self;
+            return Ok(self);
         }
         for part in path.split('/') {
             if part.is_empty() {
@@ -36,10 +37,10 @@ impl Router {
             current_node = current_node.children.entry(part.to_string()).or_insert(TrieNode::default());
         }
         current_node.handler = Some(handler);
-        self
+        Ok(self)
     }
 
-    pub fn find_route(&self, path: &str) -> Option<HandlerFn> {
+    pub(crate) fn find_route(&self, path: &str) -> Option<HandlerFn> {
         let mut current_node = &self.root;
         // ignore last string path as a parameter
         for part in path.split('/') {

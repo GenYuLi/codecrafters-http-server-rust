@@ -1,5 +1,3 @@
-use crate::http_parser::http_request::HttpRequest;
-use std::error::Error;
 use std::fmt::Display;
 
 
@@ -13,11 +11,13 @@ pub struct HttpResponse {
 
 impl Display for HttpResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "HTTP/1.1 {}\r\n", self.status_code);
+        write!(f, "HTTP/1.1 {}\r\n", self.status_code)?;
         for (key, value) in &self.headers {
-            write!(f, "{}: {}\r\n", key, value);
+            write!(f, "{}: {}\r\n", key, value)?;
         }
-        write!(f, "\r\n{}", self.body)
+        write!(f, "\r\n")?;
+        println!("body: {}", self.body);
+        write!(f, "{}", self.body)
     }
 }
 
