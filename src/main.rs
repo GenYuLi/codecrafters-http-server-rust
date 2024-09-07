@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
-use std::thread;
-use std::time::Duration;
+use std::{env, fs, thread};
+use std::path::Path;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::error::Error;
@@ -44,6 +44,26 @@ fn main() -> Result<(), Box<dyn Error + Send>> {
                     status_code: "200 OK".to_string(),
                     headers: vec![("Content-Type".to_string(), "text/plain".to_string()), ("Content-Length".to_string(), content_length.to_string())],
                     body: user_agent.to_string(),
+                })
+            })
+            .add_route("/files/*", |_req| {
+                let file_dir = Path::new("/tmp/data/codecrafters.io/http-server-tester/");
+                let filename = _req.request_uri.split("/").collect::<Vec<&str>>()[2];
+                let file_in_binary_dir = file_dir.join(filename);
+                let content = fs::read_to_string(file_in_binary_dir);
+                let content = match content {
+                    Ok(content) => content,
+                    Err(_) => return Ok(HttpResponse{
+                        status_code: "404 Not Found".to_string(),
+                        headers: vec![],
+                        body: "".to_string(),
+                    }),
+                };
+                let content_length: i32 = content.len().try_into().unwrap();
+                Ok(HttpResponse{
+                    status_code: "200 OK".to_string(),
+                    headers: vec![("Content-Type".to_string(), "application/octet-stream".to_string()), ("Content-Length".to_string(), content_length.to_string())],
+                    body: content,
                 })
             });
     }

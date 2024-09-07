@@ -10,35 +10,29 @@ type HandlerFn =  fn(&HttpRequest) -> Result<HttpResponse, Box<dyn Error>>;
 struct TrieNode {
     children: RwLock<HashMap<String, Arc<TrieNode>>>,
     handler: RwLock<Option<HandlerFn>>,
+    wildcard: Arc<RwLock<bool>>,
 }
 
 pub struct Router {
     root: Arc<TrieNode>,
-    wildcard_routes: RwLock<Vec<(String, HandlerFn)>>,
 }
 
 impl Router {
     pub fn new() -> Router {
         Router {
             root: Arc::new(TrieNode::default()),
-            wildcard_routes: RwLock::new(Vec::new()),
         }
     }
 
     pub(crate) fn add_route(&mut self, path: &str, handler: HandlerFn) -> &mut Router {
         let mut current_node = Arc::clone(&self.root);
-        if path.ends_with("/*") {
-            {
-                // Limit the scope of wildcard_routes' write lock to this block
-                let mut wildcard_routes = self.wildcard_routes.write().unwrap();
-                wildcard_routes.push((path.trim_end_matches("/*").to_string(), handler));
-            }
-            // At this point, the write lock is dropped, and we can safely return `self`
-            return self;
-        }
         for part in path.split('/') {
             if part.is_empty() {
                 continue;
+            }
+            if part == "*" {
+                *current_node.wildcard.write().unwrap() = true;
+                break;
             }
             // This is a workaround to avoid holding the write lock after or_insert_with returns
             let next_node = { 
@@ -58,9 +52,16 @@ impl Router {
         let mut current_node = Arc::clone(&self.root);
         // ignore last string path as a parameter
         for part in path.split('/') {
-            println!("{}", part);
+            println!("part: [{}]", part);
             if part.is_empty() {
                 continue;
+            }
+            let wildcard = {
+                *current_node.wildcard.read().unwrap()
+            };
+            println!("wildcard: {}", wildcard);
+            if wildcard {
+                break;
             }
             // Because we are using read lock, we can't use the following code
             // let children = current_node.children.read().unwrap().get(part)?;
@@ -73,14 +74,7 @@ impl Router {
                 let children = current_node.children.read().unwrap();
                 match children.get(part) {
                     Some(node) =>  Arc::clone(node),
-                    None => {
-                        for (route, handler) in self.wildcard_routes.read().unwrap().iter() {
-                            if path.starts_with(route) {
-                                return Some(*handler);
-                            }
-                        }
-                        return None;
-                    }
+                    None => return None,
                 }
             };
             current_node = next_node;
