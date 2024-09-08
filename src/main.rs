@@ -47,24 +47,45 @@ fn main() -> Result<(), Box<dyn Error + Send>> {
                 })
             })
             .add_route("/files/*", |_req| {
-                let file_dir = Path::new("/tmp/data/codecrafters.io/http-server-tester/");
                 let filename = _req.request_uri.split("/").collect::<Vec<&str>>()[2];
-                let file_in_binary_dir = file_dir.join(filename);
-                let content = fs::read_to_string(file_in_binary_dir);
-                let content = match content {
-                    Ok(content) => content,
-                    Err(_) => return Ok(HttpResponse{
-                        status_code: "404 Not Found".to_string(),
-                        headers: vec![],
-                        body: "".to_string(),
-                    }),
+                let file_in_binary_dir = Path::new(Router::FILEPATH).join(filename);
+                fs::DirBuilder::new().recursive(true).create(Router::FILEPATH).unwrap();
+                let response = match _req.method.as_str() {
+                    "GET" => {
+                        let content = fs::read_to_string(file_in_binary_dir);
+                        let content = match content {
+                            Ok(content) => content,
+                            Err(_) => return Ok(HttpResponse{
+                                status_code: "404 Not Found".to_string(),
+                                headers: vec![],
+                                body: "".to_string(),
+                            }),
+                        };
+                        let content_length: i32 = content.len().try_into().unwrap();
+                        Ok(HttpResponse{
+                            status_code: "200 OK".to_string(),
+                            headers: vec![("Content-Type".to_string(), "application/octet-stream".to_string()), ("Content-Length".to_string(), content_length.to_string())],
+                            body: content,
+                        })
+                    }
+                    "POST" => {
+                        let body = _req.body.clone().as_ref().to_string();
+                        fs::write(file_in_binary_dir, body).unwrap();
+                        Ok(HttpResponse{
+                            status_code: "201 Created".to_string(),
+                            headers: vec![],
+                            body: "".to_string(),
+                        })
+                    }
+                    _ => {
+                        Ok(HttpResponse{
+                            status_code: "405 Method Not Allowed".to_string(),
+                            headers: vec![],
+                            body: "".to_string(),
+                        })
+                    }
                 };
-                let content_length: i32 = content.len().try_into().unwrap();
-                Ok(HttpResponse{
-                    status_code: "200 OK".to_string(),
-                    headers: vec![("Content-Type".to_string(), "application/octet-stream".to_string()), ("Content-Length".to_string(), content_length.to_string())],
-                    body: content,
-                })
+                response
             });
     }
 
@@ -90,12 +111,14 @@ fn main() -> Result<(), Box<dyn Error + Send>> {
                         .read(&mut buf)
                         .map_err(|e| Box::new(e) as Box<dyn Error + Send>)?;
                     let s = String::from_utf8_lossy(&buf);
-                    println!("request: {}", s);
+                    let trimmed_s = s.trim_end_matches('\0');
+                    println!("request: [{}]", trimmed_s);
+                    
                     let mut req = HttpRequest::new();
-                    let result = req.parse_request(&s);
+                    let result = req.parse_request(&trimmed_s);
                     match result {
                         Ok(()) => {
-                            println!("request: {:?}", req);
+                            println!("parsed request: {:?}", req);
                             let router = my_router.read().unwrap();
                             let handler = router.find_route(&req.request_uri);
                             match handler {

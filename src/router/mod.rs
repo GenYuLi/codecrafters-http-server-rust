@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::path::Path;
 use std::sync::{Arc, RwLock};
 use crate::http_parser::http_response::HttpResponse;
 use crate::http_parser::http_request::HttpRequest;
@@ -18,6 +19,7 @@ pub struct Router {
 }
 
 impl Router {
+    pub const FILEPATH : &'static str = "/tmp/data/codecrafters.io/http-server-tester/";
     pub fn new() -> Router {
         Router {
             root: Arc::new(TrieNode::default()),

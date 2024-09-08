@@ -41,8 +41,15 @@ impl HttpRequest {
             let value = header_parts.next().ok_or("header value error").unwrap().to_string();
             self.headers.write().unwrap().push((key, value))
         }
-
-        self.body = Arc::new(lines.next().ok_or("body error").unwrap().to_string());
+        if self.method.as_str() == "POST" {
+            // Handle POST request body parsing
+            self.body = Arc::new(lines.next().ok_or("body error").unwrap().to_string());
+            println!("req body: [{}]", self.body);
+        } else {
+            // For GET or other methods, body is typically empty
+            self.body = Arc::new(String::new());
+        }
+        println!("req body: [{}]", self.body);
 
         // TODO: Parse headers and body
         Ok(())
